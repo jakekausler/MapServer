@@ -476,7 +476,18 @@
             return i;
         }
 
+        function randomThreshold(wiggle) {
+            return (Math.random() * wiggle * 2) + 1 - wiggle;
+        }
+
         function GetRandomEncounter(onRoad=undefined) {
+            var chance = Roll(1,6);
+            if (chance <= 4) {
+                return {
+                    title: "None",
+                    content: ""
+                };
+            }
             var rand = Roll(1,100)-1;
             if (onRoad === undefined) {
                 onRoad = confirm("Tile on a road?");
@@ -487,7 +498,7 @@
                 }
                 return GetRandomLair();
             } else if (rand <= 33) {
-                return GetRandomRemoteStructure();
+                return GetRandomRemoteStructure(onRoad);
             } else if (rand <= 70) {
                 return GetRandomRuinedStructure();
             } else if (rand <= 97) {
@@ -502,45 +513,543 @@
             var retVal = {
                 title: "Lair",
                 content: ""
-            }
+            };
             var rand = Roll(1,100)-1;
             switch (distanceFromRoad) {
             case 1:
-                return GetRandomLairCommon(distanceFromRoad);
+                retVal.content = GetRandomLairCommon(distanceFromRoad);
+                break;
             case 2:
                 if (rand <= 79) {
-                    return GetRandomLairCommon(distanceFromRoad);
-                {
+                    retVal.content = GetRandomLairCommon(distanceFromRoad);
+                } else {
+                    retVal.content = GetRandomLairUncommon(distanceFromRoad);
+                }
+                break;
+            case 3:
+                if (rand <= 75) {
+                    retVal.content = GetRandomLairCommon(distanceFromRoad);
+                } else if (rand <= 98) {
+                    retVal.content = GetRandomLairUncommon(distanceFromRoad);
+                } else {
+                    retVal.content = GetRandomLairLegendary(distanceFromRoad);
+                }
+                break;
+            default:
+                if (rand <= 64) {
+                    retVal.content = GetRandomLairCommon(distanceFromRoad);
+                } else if (rand <= 94) {
+                    retVal.content = GetRandomLairUncommon(distanceFromRoad);
+                } else {
+                    retVal.content = GetRandomLairLegendary(distanceFromRoad);
+                }
+                break;
             }
             return retVal;
         }
 
-        function GetRandomRemoteStructure() {
-            return {
+        function GetRandomLairCommon(distanceFromRoad) {
+            var rand = Roll(1,100) - 1;
+            switch (distanceFromRoad) {
+            case 1:
+                if (rand <= 11) {
+                    return Math.floor(Roll(1,4)*10*randomThreshold(.5)) + " Bugbear";
+                } else if (rand <= 22) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Gnoll";
+                } else if (rand <= 41) {
+                    return Math.floor(Roll(5,3)*10*randomThreshold(.5)) + " Goblin";
+                } else if (rand <= 59) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Hobgoblin";
+                } else if (rand <= 77) {
+                    return Math.floor(Roll(3,4)*10*randomThreshold(.5)) + " Kobold";
+                } else if (rand <= 87) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Lizardfolk";
+                } else {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Orc";
+                }
+            default:
+                if (rand <= 13) {
+                    return Math.floor(Roll(1,4)*10*randomThreshold(.5)) + " Bugbear";
+                } else if (rand <= 27) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Gnoll";
+                } else if (rand <= 41) {
+                    return Math.floor(Roll(5,3)*10*randomThreshold(.5)) + " Goblin";
+                } else if (rand <= 56) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Hobgoblin";
+                } else if (rand <= 70) {
+                    return Math.floor(Roll(3,4)*10*randomThreshold(.5)) + " Kobold";
+                } else if (rand <= 84) {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Lizardfolk";
+                } else {
+                    return Math.floor(Roll(2,4)*10*randomThreshold(.5)) + " Orc";
+                }
+            }
+            return retVal;
+        }
+
+        function GetRandomLairUncommon(distanceFromRoad) {
+            var rand = Roll(1,100) - 1;
+            switch (distanceFromRoad) {
+            case 2:
+                if (rand <= 59) {
+                    return Math.floor(Roll(1,2)*10*randomThreshold(.5)) + " Ankheg";
+                } else {
+                    return Math.floor(Roll(1,2)) + " Troll";
+                }
+            default:
+                if (rand <= 39) {
+                    return Math.floor(Roll(1,2)*10*randomThreshold(.5)) + " Ankheg";
+                } else if (rand <= 69) {
+                    return Math.floor(Roll(1,2)) + " Roc";
+                } else if (rand <= 89) {
+                    return Math.floor(Roll(1,2)) + " Troll";
+                } else {
+                    return Math.floor(Roll(2,2)*10*randomThreshold(.5)) + " Yuan-Ti";
+                }
+            }
+        }
+
+        function GetRandomLairLegendary(distanceFromRoad) {
+            var rand = Roll(1,100) - 1;
+            switch (distanceFromRoad) {
+            case 3:
+                if (rand <= 19) {
+                    return "A Beholder";
+                } else if (rand <= 39) {
+                    return "A Demi-Lich";
+                } else if (rand <= 59) {
+                    return "A Mummy Lord";
+                } else if (rand <= 79) {
+                    return "A Unicorn";
+                } else {
+                    return "A Vampire";
+                }
+            default:
+                if (rand <= 0) {
+                    return "An Aboleth";
+                } else if (rand <= 5) {
+                    return "A " + (Math.random() < 0.1 ? "Death Tyrant": "") + " Beholder";
+                } else if (rand <= 8) {
+                    return "A Demi-Lich";
+                } else if (rand <= 15) {
+                    return "A Black Dragon";
+                } else if (rand <= 21) {
+                    return "A Blue Dragon";
+                } else if (rand <= 27) {
+                    return "A Green Dragon";
+                } else if (rand <= 34) {
+                    return "A Red Dragon";
+                } else if (rand <= 42) {
+                    return "A White Dragon";
+                } else if (rand <= 49) {
+                    return "A Brass Dragon";
+                } else if (rand <= 56) {
+                    return "A Bronze Dragon";
+                } else if (rand <= 65) {
+                    return "A Copper Dragon";
+                } else if (rand <= 72) {
+                    return "A Gold Dragon";
+                } else if (rand <= 78) {
+                    return "A Silver Dragon";
+                } else if (rand <= 83) {
+                    return "A Lich";
+                } else if (rand <= 85) {
+                    return "A Mummy Lord";
+                } else if (rand <= 94) {
+                    return "A Unicorn";
+                } else {
+                    return "A Vampire";
+                }
+            }
+        }
+
+        function GetRandomRemoteStructure(onRoad) {
+            var rand = Roll(1,100) - 1;
+            var retVal = {
                 title: "Remote Structure",
                 content: ""
+            };
+            if (rand <= 9) {
+                if (onRoad && Math.random() < 0.5) {
+                    retVal.content = "An outpost";
+                } else {
+                    rand = Roll(1, 100) - 1;
+                    if (rand <= 9) {
+                        retVal.content = "A hermit's house";
+                    } else if (rand <= 29) {
+                        retVal.content = "A single family house";
+                    } else if (rand <= 44) {
+                        retVal.content = "A commune with " + Roll(3,2) + " families";
+                    } else if (rand <= 54) {
+                        retVal.content = "A druid's house";
+                    } else if (rand <= 64) {
+                        retVal.content = "An herbalist's house";
+                    } else if (rand <= 70) {
+                        retVal.content = "A witch's house";
+                    } else if (rand <= 76) {
+                        retVal.content = "A were";
+                        rand = Roll(1, 12);
+                        if (rand <= 5) {
+                            retVal.content += "wolf";
+                        } else if (rand <= 8) {
+                            retVal.content += "bear";
+                        } else if (rand <= 10) {
+                            retVal.content += "rat";
+                        } else if (rand <= 10) {
+                            retVal.content += "boar";
+                        } else {
+                            retVal.content += "tiger";
+                        }
+                        retVal.content += "'s house";
+                    } else if (rand <= 81) {
+                        retVal.content = "A house with " + Roll(2,3) + " cultists living there";
+                    } else if (rand <= 91) {
+                        retVal.content = "A hunter's house";
+                    } else {
+                        retVal.content = "A bandit or other criminal's house";
+                    }
+                }
+            } else if (rand <= 12) {
+                retVal.content = "<p>A small castle.<p>";
+                retVal.content += GetSmallCastleDescription();
+            } else if (rand <= 15) {
+                retVal.content = "<p>A large castle.<p>";
+                retVal.content += GetLargeCastleDescription();
+            } else if (rand <= 19) {
+                retVal.content = "<p>A temple.<p>";
+                retVal.content += GetTempleDescription();
+            } else if (rand <= 24) {
+                retVal.content = "A traveller's respite hut.";
+            } else if (rand <= 39) {
+                if (onRoad) {
+                    rand = Roll(1,100) - 1;
+                    if (rand <= 19) {
+                        retVal.content = "A farm stead and fields along the road.";
+                    } else if (rand <= 69) {
+                        retVal.content = "A hamlet on the road.";
+                    } else {
+                        retVal.content = "A minor village on the road.";
+                    }
+                } else {
+                    retVal.content = "A farm stead and small farm fields.";
+                }
+            } else if (rand <= 49) {
+                retVal = "<p>A stone well still in use.</p>";
+                retVal += GetWellDesctiption();
+                if (Math.random() < 0.3) {
+                    retVal.content += GetWellFeature();
+                }
+            } else if (rand <= 54) {
+                rand = Roll(1,100) - 1;
+                if (rand <= 19) {
+                    retVal.content = "An isolated fighter's guild";
+                } else if (rand <= 29) {
+                    retVal.content = "A mage's tower";
+                } else if (rand <= 49) {
+                    retVal.content = "A small watch tower with " + Roll(10,3) + " guards and " + (Roll(1,4)+6) + " mounts";
+                } else if (rand <= 89) {
+                    retVal.content = "A religious commune with acolytes and priests";
+                } else {
+                    retVal.content = "An isolated library with " + Roll(3,2) + "researchers";
+                }
+            } else if (rand <= 59) {
+                retVal.content = "<p>A shallow grave with a makeshift tombstone.</p>";
+                retVal.content += GetGraveDescription();
+                if (Math.random() < 0.1) {
+                    retVal.content += "<p>There is a treature hidden nearby.</p>";
+                }
+            } else if (rand <= 62) {
+                retVal.content = "<p>A stone statue dedicated to ";
+                if (Math.random() < 0.5) {
+                    retVal.content += "a god</p>";
+                    retVal.content += GetStatueDescription();
+                } else {
+                    if (Math.random() < 0.6) {
+                        retVal.content += "a personality</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatuePersonalityDescription();
+                    } else {
+                        retVal.content += "beasts or monsters</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatueBeastsDescription();
+                    }
+                }
+                if (Math.random() < 0.1) {
+                    retVal.content += "<p>There is a treature hidden nearby.</p>";
+                }
+            } else if (rand <= 65) {
+                retVal.content = "An old, tall and thick wooden pole covered with ";
+                rand = Roll(1,100) - 1;
+                if (rand <= 24) {
+                    retVal.content += "picture glyphs";
+                } else if (rand <= 49) {
+                    retVal.content += "feathers";
+                } else if (rand <= 74) {
+                    retVal.content += "small animal skulls";
+                } else {
+                    retVal.content += "tattered, weathered woven scarves";
+                }
+            } else if (rand <= 78) {
+                if (!onRoad) {
+                    return GetRandomRemoteStructure(onRoad);
+                } else {
+                    retVal.content = "An inn or road house";
+                }
+            } else if (rand <= 82) {
+                retVal.content += "A working ";
+                rand = Roll(1,100)-1;
+                if (rand <= 59) {
+                    retVal.content += "copper";
+                } else if (rand <= 89) {
+                    retVal.content += "silver";
+                } else if (rand <= 97) {
+                    retVal.content += "gold";
+                } else {
+                    retVal.content += "diamond";
+                }
+                retVal.content += " mine, filled with ";
+                rand = Roll(1,100)-1;
+                if (rand <= 24) {
+                    retVal.content += "humans";
+                } else if (rand <= 49) {
+                    retVal.content += "dwarves";
+                } else if (rand <= 74) {
+                    retVal.content += "goblins";
+                } else {
+                    retVal.content += "kobolds";
+                }
+            } else if (rand <= 86) {
+                retVal.content = "<p>A stone altar.</p>";
+                retVal.content += GetAltarDescription();
+                if (Math.random() < 0.1) {
+                    retVal.content += GetAltarTrap();
+                }
+            } else if (rand <= 90) {
+                retVal.content = "<p>A stone dias with pillars around it.</p>";
+                if (Math.random() < 0.1) {
+                    retVal.content += "<p>There is a treature hidden nearby.</p>";
+                }
+            } else if (rand <= 95) {
+                retVal.content = "An outlaw or criminal camp.";
+            } else {
+                retVal.content = "A bandit camp."
             }
+            return retVal;
         }
 
         function GetRandomRuinedStructure() {
-            return {
+            var retVal = {
                 title: "Ruined Structure",
                 content: ""
+            };
+            var rand = Roll(1,100) - 1;
+            if (rand <= 4) {
+                retVal.content = "<p>A dry well.</p>";
+                retVal.content += GetWellDescription();
+                if (Math.random() < 0.3) {
+                    retVal.content += GetWellFeature();
+                }
+            } else if (rand <= 9) {
+                retVal.content = "Ancient stone pillars are scattered about.";
+            } else  if (rand <= 14) {
+                retVal.content = "Collapsed walls form the skeleton of an ancient structure.";
+            } else  if (rand <= 19) {
+                retVal.content = "Scattered stone blocks lie about.";
+            } else  if (rand <= 24) {
+                retVal.content = "<p>" + Roll(1,4) + " fallen statues are here.</p>";
+                retVal.content += "<p>They were dedicated to ";
+                if (Math.random() < 0.5) {
+                    retVal.content += "a god</p>";
+                    retVal.content += GetStatueDescription();
+                } else {
+                    if (Math.random() < 0.6) {
+                        retVal.content += "a personality</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatuePersonalityDescription();
+                    } else {
+                        retVal.content += "beasts or monsters</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatueBeastsDescription();
+                    }
+                }
+                if (Math.random() < 0.1) {
+                    retVal.content += "<p>There is a treature hidden nearby.</p>";
+                }
+            } else  if (rand <= 34) {
+                retVal.content = "<p>A set of small ruins.</p>";
+                retVal.content += GetSmallRuinDescription();
+                if (Math.random() <= 0.3) {
+                    retVal.content += GetHaunt();
+                }
+            } else  if (rand <= 43) {
+                retVal.content = "<p>A ruined building</p>";
+                retVal.content += GetBuildingRuinDescription();
+            } else  if (rand <= 49) {
+                retVal.content = "An abandoned mine.";
+            } else  if (rand <= 54) {
+                retVal.content = "A ruined small house.";
+                if (Math.random() <= 0.25) {
+                    retVal.content += " It has a cellar.";
+                }
+            } else  if (rand <= 59) {
+                retVal.content = "A ruined small tower.";
+                if (Math.random() <= 0.5) {
+                    retVal.content += " It has a dungeon.";
+                }
+            } else  if (rand <= 64) {
+                retVal.content = "A ruined small keep.";
+                if (Math.random() <= 0.75) {
+                    retVal.content += " It has a dungeon.";
+                }
+            } else  if (rand <= 69) {
+                retVal.content = "Ruined stone walls forming the skeleton of an ancient structure, with stairs leading down into a dungeon.";
+            } else  if (rand <= 74) {
+                retVal.content = "An abandoned and dusty cottage with many belongings still there.";
+            } else  if (rand <= 78) {
+                retVal.content = "<p>" + Roll(1,3) + " ancient massive statues that are still standing.</p>";
+                retVal.content += "<p>They were dedicated to ";
+                if (Math.random() < 0.5) {
+                    retVal.content += "a god</p>";
+                    retVal.content += GetStatueDescription();
+                } else {
+                    if (Math.random() < 0.6) {
+                        retVal.content += "a personality</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatuePersonalityDescription();
+                    } else {
+                        retVal.content += "beasts or monsters</p>";
+                        retVal.content += GetStatueDescription();
+                        retVal.content += GetStatueBeastsDescription();
+                    }
+                }
+                if (Math.random() < 0.1) {
+                    retVal.content += "<p>There is a treature hidden nearby.</p>";
+                }
+            } else  if (rand <= 95) {
+                retVal.content = "<p>A set of large ruins.</p>";
+                retVal.content += GetLargeRuinDescription();
+                if (Math.random() <= 0.3) {
+                    retVal.content += GetHaunt();
+                }
+            } else {
+                retVal.content = "An ancient maussoleum. Inside, adventurers can find ";
+                rand = Roll(1,100) - 1;
+                if (rand <= 19) {
+                    retVal.content += "nothing interesting";
+                } else 
+                if (rand <= 89) {
+                    retVal.content += "one or more well-preserved dead bodies";
+                    if (Math.random() < 0.5) {
+                        retVal.content += ", one of which was buried with a low level treasure hoard";
+                    }
+                } else {
+                    retVal.content += "one or more undead";
+                    if (Math.random() < 0.3) {
+                        retVal.content += ", one of which is carrying a random magical item";
+                    }
+                }
+                retVal += ".";
             }
+            return retVal;
         }
 
         function GetRandomNaturalStructure() {
-            return {
+            var retVal = {
                 title: "Natural Structure",
                 content: ""
+            };
+            var rand = Roll(1,100) - 1;
+            if (rand <= 9) {
+                retVal.content = "";
+            } else if (rand <= 10) {
+                retVal.content = "";
+            } else if (rand <= 12) {
+                retVal.content = "";
+            } else if (rand <= 15) {
+                retVal.content = "";
+            } else if (rand <= 19) {
+                retVal.content = "";
+            } else if (rand <= 23) {
+                retVal.content = "";
+            } else if (rand <= 27) {
+                retVal.content = "";
+            } else if (rand <= 29) {
+                retVal.content = "";
+            } else if (rand <= 34) {
+                retVal.content = "";
+            } else if (rand <= 39) {
+                retVal.content = "";
+            } else if (rand <= 43) {
+                retVal.content = "";
+            } else if (rand <= 48) {
+                retVal.content = "";
+            } else if (rand <= 54) {
+                retVal.content = "";
+            } else if (rand <= 59) {
+                retVal.content = "";
+            } else if (rand <= 94) {
+                retVal.content = "";
+            } else {
+                retVal.content = "";
             }
+            return retVal;
         }
 
         function GetRandomRemarkableEventOrFeature() {
-            return {
+            var retVal = {
                 title: "Remarkable",
                 content: ""
+            };
+            var rand = Roll(1,30) - 1;
+            if (rand <= 4) {
+                retVal.content = "";
+            } else if (rand <= 9) {
+                retVal.content = "";
+            } else if (rand <= 14) {
+                retVal.content = "";
+            } else if (rand <= 19) {
+                retVal.content = "An ancient glowing stone pillar. If touched, ";
+                rand = Roll(1,100) - 1;
+                if (rand <= 2) {
+                    rand += "the toucher's gender is changed for 1d10 days.";
+                } else if (rand <= 22) {
+                    rand += "the toucher gains inspiration. The toucher cannot gain inspiration again in this way from the pillar for 3d12 months.";
+                } else if (rand <= 27) {
+                    rand += "the toucher turns 4d12 years older. The toucher cannot die from old age while under this effect. This effect wears off in 1d4 days.";
+                } else if (rand <= 42) {
+                    rand += "an arcane blast comes out from the pillar, dealing 2d6 force damage to all creatures within 20 feet of the pillar";
+                } else if (rand <= 57) {
+                    rand += "fully heals the toucher and grants 1d8 temporary HP. The toucher cannot be effected again in this way from the pillar for 1d12 months.";
+                } else if (rand <= 62) {
+                    rand += "the toucher turns 4d12 years younger. The toucher cannot become younger than a newborn. This effect wears off in 1d4 days.";
+                } else if (rand <= 72) {
+                    rand += "a random creature is gated in.";
+                } else if (rand <= 82) {
+                    rand += "a random ability score increases by 2 for 1d6 days. The toucher cannot be effected again in this way from the pillar for 1d12 months.";
+                } else if (rand <= 92) {
+                    rand += "a random ability score decreases by 2 for 1d4 days. The toucher cannot be effected again in this way from the pillar for 1d12 months.";
+                } else if (rand <= 93) {
+                    rand += "the toucher's alignment is changed to a random alignment until 1d10 days have passed.";
+                } else {
+                    rand += "a random magical item appears.";
+                }
+            } else if (rand <= 24) {
+                retVal.content = "An ancient black tree with liquid red ooze pouring out. If the ooze is drunk within 24 hours of drinking, the drinker ";
+                rand = Roll(1,100) - 1;
+                if (rand <= 39) {
+                    retVal.content += "suffers 1d8 poison damage.";
+                } else if (rand <= 59) {
+                    retVal.content += "is healed 1d8 hit points.";
+                } else if (rand <= 79) {
+                    retVal.content += "is granted +2 temporary points to his or her strength score. This effect wears off 12 hours after drinking the liquid, and cannot be stacked.";
+                } else {
+                    retVal.content += "suffers the same effects as strong alcohol. This effect wears off after a long rest. If multiple doses are injested, the drinker suffers one level of exhaustion per additional dose.";
+                }
+            } else {
+                retVal.content = "<p>A moonwell</p>";
+                retval.content += "<p>If the water from this well is drunk within 24 hours of drawing it, it will cure the drinker 1d8 hit points. However, if the drinker has damaged the natural world in a major way, it will instead deal 1d8 poison damage. If there is a full moon when the drinker is healed, the drinker also gains the effects of a Lesser Restoration spell.</p>";
             }
+            return retVal;
         }
 
         function GetIcon(url) {
