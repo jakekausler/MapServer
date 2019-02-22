@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Map Types</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+		 * element that contains the map. */
+        
+        #map {
+            height: 100%;
+        }
+        /* Optional: Makes the sample page fill the window. */
+        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 40%;
+            top: 20%;
+            width: 20%;
+            height: 60%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20%;
+            border: 1px solid %888;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black,
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="marker-editor" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="CloseModal('marker-editor')">&times;</span>
+            <input id="marker-editor-type" type="hidden" value="">
+            <input id="marker-editor-id" type="hidden" value="">
+            <input id="marker-editor-lat" type="hidden" value="">
+            <input id="marker-editor-lng" type="hidden" value="">
+            <label for="marker-editor-title">Title</label><br>
+            <input id="marker-editor-title" type="text" value=""><br>
+            <label for="marker-editor-content">Content</label><br>
+            <textarea id="marker-editor-content"></textarea><br>
+            <label for="marker-editor-icon">Icon</label><br>
+            <img id="marker-editor-icon" src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2.png" onclick="ShowMarkerIconDialog()"><br>
+            <button onclick="SaveMarker()">Save</button>
+        </div>
+    </div>
+    <div id="marker-icon-dialog" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="CloseModal('marker-icon-dialog')">&times;</span>
+            <label for="marker-icon-dialog-icon">Icon URL</label><br>
+            <input id="marker-icon-dialog-icon" type="text" value=""><br>
+            <button onclick="SelectMarkerIcon()">Select</button>
+        </div>
+    </div>
+    <script>
+        function initMap()
+        {
+            window.window.tile_width = 500;
+            window.window.tile_height = 400;
+            window.map = new google.maps.Map(document.getElementById('map'),
+            {
+                center:
+                {
+                    lat: 0,
+                    lng: 0
+                },
+                zoom: 1,
+                streetViewControl: false,
+                mapTypeControlOptions:
+                {
+                    mapTypeIds: ['world']
+                }
+            });
+
+            var worldMapType = new google.maps.ImageMapType(
+            {
+                getTileUrl: function(coord, zoom)
+                {
+                    var normalizedCoord = getNormalizedCoord(
+                        coord, zoom);
+                    if (!normalizedCoord)
+                    {
+                        return null;
+                    }
+                    var bound = Math.pow(2, zoom);
+                    return 'maptiles' +
+                        '/' + zoom + '/' + normalizedCoord.x +
+                        '/' +
+                        (normalizedCoord.y) + '.jpg';
+                },
+                tileSize: new google.maps.Size(window.tile_width,
+                    window.tile_height),
+                maxZoom: 5,
+                minZoom: 0,
+                name: 'World'
+            });
+
+            Projection = {
+                fromLatLngToPoint: function(latLng)
+                {
+                    /*siny = Math.sin(latLng.lat() * Math.PI / 180);
+                    return new google.maps.Point(
+                        window.tile_width * (0.5 + latLng.lng() /
+                            360),
+                        window.tile_height * (0.5 - Math.log((1 +
+                            siny) / (1 - siny)) / 4 * Math.PI));
+                    */
+                    return new google.maps.Point(
+                        (window.tile_width * (latLng.lng() + 180)) / 360,
+                        (window.tile_height * ((latLng.lat()) + 90)) / 180
+                    );
+                },
+                fromPointToLatLng: function(point, noWrap)
+                {
+                    /*
+                    return new google.maps.LatLng(
+                        360 * (point.x / window.tile_width - 0.5), -
+                        ((1 - 4 * Math.PI * Math.pow(Math.E,
+                            point.y / 200)) / (4 * Math.PI *
+                            Math.pow(Math.E, point.y / 200) +
+                            Math.PI)));
+                    */
+                    return new google.maps.LatLng(
+                        ((180 * (point.y)) / window.tile_height) - 90,
+                        ((360 * point.x) / window.tile_width) - 180
+                    );
+                }
+            };
+            worldMapType.projection = Projection;
+
+            window.map.mapTypes.set('world', worldMapType);
+            window.map.setMapTypeId('world');
+
+            function ScaleDisplay(controlDiv, map)
+            {
+                var controlUI = document.createElement('div');
+                controlUI.id = "ScaleDiv";
+                controlUI.style.backgroundColor = '#fff';
+                controlUI.style.border = '2px solid #fff';
+                controlUI.style.borderRadius = '3px';
+                controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+                controlUI.style.cursor = 'pointer';
+                controlUI.style.marginBottom = '22px';
+                controlUI.style.textAlign = 'center';
+                controlUI.title = "Large Hex: " + GetScale(map.getZoom()) +
+                    "mi; Small Hex: " + GetScale(map.getZoom()) / 2 + "mi";
+                controlUI.style.visibility = "hidden";
+                controlDiv.appendChild(controlUI);
+
+                // Set CSS for the control interior.
+                var controlText = document.createElement('div');
+                controlText.id = "scaleText";
+                controlText.style.color = 'rgb(25,25,25)';
+                controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+                controlText.style.fontSize = '16px';
+                controlText.style.lineHeight = '38px';
+                controlText.style.paddingLeft = '5px';
+                controlText.style.paddingRight = '5px';
+                controlText.innerHTML = "Large Hex: " + GetScale(map.getZoom()) +
+                    "mi; Small Hex: " + GetScale(map.getZoom()) / 2 + "mi";
+                controlUI.appendChild(controlText);
+            }
+
+            function PositionDisplay(controlDiv, map)
+            {
+                var controlUI = document.createElement('div');
+                controlUI.id = "PositionDiv";
+                controlUI.style.backgroundColor = '#fff';
+                controlUI.style.border = '2px solid #fff';
+                controlUI.style.borderRadius = '3px';
+                controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+                controlUI.style.cursor = 'pointer';
+                controlUI.style.marginBottom = '22px';
+                controlUI.style.textAlign = 'center';
+                controlUI.title = "";
+                controlDiv.appendChild(controlUI);
+
+                // Set CSS for the control interior.
+                var controlText = document.createElement('div');
+                controlText.id = "PositionText";
+                controlText.style.color = 'rgb(25,25,25)';
+                controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+                controlText.style.fontSize = '16px';
+                controlText.style.lineHeight = '38px';
+                controlText.style.paddingLeft = '5px';
+                controlText.style.paddingRight = '5px';
+                controlText.innerHTML = "";
+                controlUI.appendChild(controlText);
+            }
+
+            function GridControl(controlDiv, map)
+            {
+                // Set CSS for the control border.
+                var controlUI = document.createElement('div');
+                controlUI.style.backgroundColor = '#fff';
+                controlUI.style.border = '2px solid #fff';
+                controlUI.style.borderRadius = '3px';
+                controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+                controlUI.style.cursor = 'pointer';
+                controlUI.style.marginBottom = '22px';
+                controlUI.style.textAlign = 'center';
+                controlUI.title = 'Click to show/hide grid';
+                controlDiv.appendChild(controlUI);
+
+                // Set CSS for the control interior.
+                var controlText = document.createElement('div');
+                controlText.style.color = 'rgb(25,25,25)';
+                controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+                controlText.style.fontSize = '16px';
+                controlText.style.lineHeight = '38px';
+                controlText.style.paddingLeft = '5px';
+                controlText.style.paddingRight = '5px';
+                controlText.innerHTML = 'Grid';
+                controlUI.appendChild(controlText);
+
+                // Setup the click event listeners: simply set the map to Chicago.
+                controlUI.addEventListener('click', function()
+                {
+                    if (layers.hasOwnProperty("Grid"))
+                    {
+                        hideGridLayer();
+                    }
+                    else
+                    {
+                        showGridLayer();
+                    }
+                });
+            }
+
+            function BorderControl(controlDiv, map)
+            {
+                // Set CSS for the control border.
+                var controlUI = document.createElement('div');
+                controlUI.style.backgroundColor = '#fff';
+                controlUI.style.border = '2px solid #fff';
+                controlUI.style.borderRadius = '3px';
+                controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+                controlUI.style.cursor = 'pointer';
+                controlUI.style.marginBottom = '22px';
+                controlUI.style.textAlign = 'center';
+                controlUI.title = 'Click to show/hide country borders';
+                controlDiv.appendChild(controlUI);
+
+                // Set CSS for the control interior.
+                var controlText = document.createElement('div');
+                controlText.style.color = 'rgb(25,25,25)';
+                controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+                controlText.style.fontSize = '16px';
+                controlText.style.lineHeight = '38px';
+                controlText.style.paddingLeft = '5px';
+                controlText.style.paddingRight = '5px';
+                controlText.innerHTML = 'Borders';
+                controlUI.appendChild(controlText);
+
+                // Setup the click event listeners: simply set the map to Chicago.
+                controlUI.addEventListener('click', function()
+                {
+                    if (layers.hasOwnProperty("Borders"))
+                    {
+                        hideBorderLayer();
+                    }
+                    else
+                    {
+                        showBorderLayer();
+                    }
+                });
+            }
+
+            function RoadsAndCitiesControl(controlDiv, map)
+            {
+                // Set CSS for the control border.
+                var controlUI = document.createElement('div');
+                controlUI.style.backgroundColor = '#fff';
+                controlUI.style.border = '2px solid #fff';
+                controlUI.style.borderRadius = '3px';
+                controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+                controlUI.style.cursor = 'pointer';
+                controlUI.style.marginBottom = '22px';
+                controlUI.style.textAlign = 'center';
+                controlUI.title = 'Click to show/hide roads and cities';
+                controlDiv.appendChild(controlUI);
+
+                // Set CSS for the control interior.
+                var controlText = document.createElement('div');
+                controlText.style.color = 'rgb(25,25,25)';
+                controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+                controlText.style.fontSize = '16px';
+                controlText.style.lineHeight = '38px';
+                controlText.style.paddingLeft = '5px';
+                controlText.style.paddingRight = '5px';
+                controlText.innerHTML = 'Roads/Cities';
+                controlUI.appendChild(controlText);
+
+                // Setup the click event listeners: simply set the map to Chicago.
+                controlUI.addEventListener('click', function()
+                {
+                    if (layers.hasOwnProperty("RoadsAndCities"))
+                    {
+                        hideRoadsAndCitiesLayer();
+                    }
+                    else
+                    {
+                        showRoadsAndCitiesLayer();
+                    }
+                });
+            }
+
+            var bordersControlDiv = document.createElement('div');
+            var bordersControl = new BorderControl(bordersControlDiv, map);
+
+            bordersControlDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+                bordersControlDiv);
+
+            var roadsAndCitiesControlDiv = document.createElement('div');
+            var roadsAndCitiesControl = new RoadsAndCitiesControl(
+                roadsAndCitiesControlDiv, map);
+
+            roadsAndCitiesControlDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+                roadsAndCitiesControlDiv);
+
+            var gridControlDiv = document.createElement('div');
+            var gridControl = new GridControl(gridControlDiv, map);
+
+            gridControlDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+                gridControlDiv);
+
+            var scaleDisplayDiv = document.createElement('div');
+            var scaleDisplayControl = new ScaleDisplay(scaleDisplayDiv, map);
+
+            scaleDisplayDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+                scaleDisplayDiv);
+
+            var positionDisplayDiv = document.createElement('div');
+            var positionDisplayControl = new PositionDisplay(positionDisplayDiv, map);
+            positionDisplayDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+                positionDisplayDiv);
+
+            map.addListener('zoom_changed', function()
+            {
+                document.getElementById('ScaleDiv').Title =
+                    "Large Hex: " + GetScale(Math.min(map.getZoom(),
+                        4)) +
+                    "mi; Small Hex: " + GetScale(Math.min(map.getZoom(), 4)) / 2 +
+                    "mi";
+                document.getElementById('scaleText').innerHTML =
+                    "Large Hex: " + GetScale(Math.min(map.getZoom(),
+                        4)) +
+                    "mi; Small Hex: " + GetScale(Math.min(map.getZoom(), 4)) / 2 +
+                    "mi";
+            });
+            
+            map.addListener('mousemove', function(evt) {
+                document.getElementById("PositionText").innerHTML = Math.floor(evt.latLng.lng()*10000)/10000 + ", " + Math.floor(evt.latLng.lat()*10000)/10000 + "<br>" + Math.floor(evt.pa.x*10000)/10000 + ", " + Math.floor(evt.pa.y*10000)/10000;
+            });
+
+            map.addListener('click', function(evt) {
+                PlaceMarker(evt.latLng);
+            });
+
+            map.addListener('rightclick', function(evt) {
+                RandomEncounter(evt.latLng);
+            });
+            
+            window.infowindow = new google.maps.InfoWindow();
+            window.markers = {};
+            LoadMarkers();
+
+            function RandomEncounter(location) {
+                var enc = GetRandomEncounter();
+                var marker = new google.maps.Marker({
+                    position: location,
+                    map: window.map,
+                    id: create_UUID(),
+                    label: GetLabel(enc.title),
+                    data: "",
+                    content: enc.content,
+                    icon: GetIcon("https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2.png") 
+                });
+                window.markers[marker.id] = marker;
+                ShowUpdateMarkerDialog("create", marker.id);
+                marker.addListener('click', function(evt) {
+                    infowindow.setContent(marker.data);
+                    infowindow.open(map, this);
+                });
+            };
+
+            function PlaceMarker(location) {
+                var marker = new google.maps.Marker({
+                    position: location,
+                    map: window.map,
+                    id: create_UUID(),
+                    label: GetLabel(""),
+                    data: "",
+                    content: "",
+                    icon: GetIcon("https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2.png") 
+                });
+                window.markers[marker.id] = marker;
+                ShowUpdateMarkerDialog("create", marker.id);
+                marker.addListener('click', function(evt) {
+                    infowindow.setContent(marker.data);
+                    infowindow.open(map, this);
+                });
+            };
+            
+            function LoadMarkers() {
+                $.ajax({
+                    url: 'markers',
+                    type: 'GET',
+                    success: function(res) {
+                        res = JSON.parse(res);
+                        $.each(res, function(i, marker) {
+                            var marker = new google.maps.Marker({
+                                position: {lat: parseFloat(marker.position.lat), lng: parseFloat(marker.position.lng)},
+                                map: window.map,
+                                id: marker.id,
+                                label: GetLabel(marker.title),
+                                data: "",
+                                content: marker.content,
+                                icon: GetIcon(marker.icon)
+                            });
+                            marker.data = GetMarkerData(marker);
+                            window.markers[marker.id] = marker;
+                            console.log(window.markers);
+                            marker.addListener('click', function(evt) {
+                                window.infowindow.setContent(marker.data);
+                                window.infowindow.open(map, this);
+                            });
+                        });
+                    },
+                    error: function(res) {
+                        console.log(res);
+                    }
+                });
+            };
+
+        }
+
+        function Roll(num, type) {
+            var i = Math.floor(Math.random() * type) + 1;
+            for (var j=1; j < num; j++) {
+                i += Math.floor(Math.random() * type) + 1;
+            }
+            return i;
+        }
+
+        function GetRandomEncounter(onRoad=undefined) {
+            var rand = Roll(1,100)-1;
+            if (onRoad === undefined) {
+                onRoad = confirm("Tile on a road?");
+            }
+            if (rand <= 4) {
+                if (onRoad) {
+                    return GetRandomEncounter(onRoad)
+                }
+                return GetRandomLair();
+            } else if (rand <= 33) {
+                return GetRandomRemoteStructure();
+            } else if (rand <= 70) {
+                return GetRandomRuinedStructure();
+            } else if (rand <= 97) {
+                return GetRandomNaturalStructure();
+            } else {
+                return GetRandomRemarkableEventOrFeature();
+            }
+        }
+
+        function GetRandomLair() {
+            var distanceFromRoad = int(prompt("How far from a road/city?"));
+            var retVal = {
+                title: "Lair",
+                content: ""
+            }
+            var rand = Roll(1,100)-1;
+            switch (distanceFromRoad) {
+            case 1:
+                return GetRandomLairCommon(distanceFromRoad);
+            case 2:
+                if (rand <= 79) {
+                    return GetRandomLairCommon(distanceFromRoad);
+                {
+            }
+            return retVal;
+        }
+
+        function GetRandomRemoteStructure() {
+            return {
+                title: "Remote Structure",
+                content: ""
+            }
+        }
+
+        function GetRandomRuinedStructure() {
+            return {
+                title: "Ruined Structure",
+                content: ""
+            }
+        }
+
+        function GetRandomNaturalStructure() {
+            return {
+                title: "Natural Structure",
+                content: ""
+            }
+        }
+
+        function GetRandomRemarkableEventOrFeature() {
+            return {
+                title: "Remarkable",
+                content: ""
+            }
+        }
+
+        function GetIcon(url) {
+            return {
+                url: url,
+                scaledSize: new google.maps.Size(15,24),
+                origin: new google.maps.Point(0,0),
+                anchor: new google.maps.Point(7,24),
+                labelOrigin: new google.maps.Point(7, 28)
+            };
+        }
+
+        function GetLabel(title) {
+            return {
+                color: 'white',
+                fontWeight: 'bold',
+                text: title,
+                fontSize: '10px'
+            };
+        }
+
+        function AddMarker(marker) {
+            window.markers[marker.id].setPosition(marker.position);
+            window.markers[marker.id].setLabel(marker.label);
+            window.markers[marker.id].setIcon(marker.icon);
+            window.markers[marker.id].content = marker.content;
+            window.markers[marker.id].data = GetMarkerData(marker);
+            $.ajax({
+                url: 'markers',
+                type: 'PUT',
+                dataType: 'json',
+                contentType: 'application/json; charset=utf8',
+                data: JSON.stringify({
+                    id: marker.id,
+                    position: {
+                        lat: marker.position.lat(),
+                        lng: marker.position.lng()
+                    },
+                    title: marker.label.text,
+                    content: marker.content,
+                    icon: marker.icon.url
+                }),
+                success: function(res) {
+                    console.log(res);
+                },
+                error: function(res) {
+                    console.log(res);
+                }
+            });
+        }
+
+        function DeleteMarker(id) {
+            window.markers[id].setMap(null);
+            window.markers[id] = null;
+            $.ajax({
+                url: 'markers',
+                type: 'DELETE',
+                data: id,
+                success: function(res) {
+                    console.log(res);
+                },
+                error: function(res) {
+                    console.log(res);
+                }
+            });
+        };
+
+        function UpdateMarker(marker) {
+            window.markers[marker.id].setPosition(marker.position);
+            window.markers[marker.id].setLabel(marker.label);
+            window.markers[marker.id].setIcon(marker.icon);
+            window.markers[marker.id].content = marker.content;
+            window.markers[marker.id].data = GetMarkerData(marker);
+            $.ajax({
+                url: 'markers',
+                type: 'POST',
+                data: JSON.stringify({
+                    id: marker.id,
+                    position: {
+                        lat: marker.position.lat(),
+                        lng: marker.position.lng()
+                    },
+                    title: marker.label.text,
+                    content: marker.content,
+                    icon: marker.icon.url
+                }),
+                success: function(res) {
+                    console.log(res);
+                },
+                error: function(res) {
+                    console.log(res);
+                }
+            });
+        };
+
+        function CloseModal(id) {
+            if (id == "marker-editor") {
+                if (document.getElementById("marker-editor-type").value === "create") {
+                    window.markers[document.getElementById("marker-editor-id").value].setMap(null);
+                    window.markers[document.getElementById("marker-editor-id").value] = null;
+                }
+            }
+            document.getElementById(id).style.display = "none";
+        };
+
+        function ShowUpdateMarkerDialog(type, id) {
+            var modal = document.getElementById('marker-editor');
+            document.getElementById("marker-editor-type").value=type;
+            document.getElementById("marker-editor-id").value=id;
+            document.getElementById("marker-editor-lat").value=window.markers[id].position.lat();
+            document.getElementById("marker-editor-lng").value=window.markers[id].position.lng();
+            document.getElementById("marker-editor-title").value=window.markers[id].label.text;
+            document.getElementById("marker-editor-content").value=window.markers[id].content;
+            console.log(window.markers[id].icon);
+            if (window.markers[id].icon) {
+                document.getElementById("marker-editor-icon").src=window.markers[id].icon.url;
+            } else {
+                document.getElementById("marker-editor-icon").src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2.png"
+            }
+            modal.style.display="block";
+        };
+
+        function GetMarkerData(marker) {
+            var s = "";
+            s += "<div>";
+            s += "<h3>" + marker.label.text + "</h3>";
+            s += marker.content;
+            s += "<div><button onclick='DeleteMarker(\"" + marker.id + "\")'>Delete</button><button onclick='ShowUpdateMarkerDialog(\"update\", \"" + marker.id + "\")'>Update</button></div>";
+            s += "</div>";
+            return s;
+        }
+
+        function ShowMarkerIconDialog() {
+            var modal = document.getElementById('marker-icon-dialog');
+            document.getElementById("marker-icon-dialog-icon").value=document.getElementById("marker-editor-icon").src;
+            modal.style.display="block";
+        }
+
+        function SaveMarker() {
+            var modal = document.getElementById('marker-editor');
+            var marker = {
+                id: document.getElementById("marker-editor-id").value,
+                label: GetLabel(document.getElementById("marker-editor-title").value),
+                content: document.getElementById("marker-editor-content").value,
+                icon: GetIcon(document.getElementById("marker-editor-icon").src),
+                position: new google.maps.LatLng(parseFloat(document.getElementById("marker-editor-lat").value), parseFloat(document.getElementById("marker-editor-lng").value))
+            };
+            modal.style.display="none";
+            if (document.getElementById("marker-editor-type").value === "update") {
+                UpdateMarker(marker);
+            } else {
+                AddMarker(marker);
+            }
+        }
+
+        function SelectMarkerIcon() {
+            var modal = document.getElementById('marker-icon-dialog');
+            document.getElementById("marker-editor-icon").src=document.getElementById("marker-icon-dialog-icon").value;
+            modal.style.display="none";
+        }
+
+        function create_UUID(){
+            var dt = new Date().getTime();
+            var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = (dt + Math.random()*16)%16 | 0;
+                dt = Math.floor(dt/16);
+                return (c=='x' ? r :(r&0x3|0x8)).toString(16);
+            });
+            return uuid;
+        }
+
+        function GetScale(zoom)
+        {
+            return Math.floor(2 ** (5 - zoom + 3));
+        }
+
+        var layers = {};
+
+        function BorderMapType(tileSize)
+        {
+            this.tileSize = tileSize;
+        }
+
+        BorderMapType.prototype.getTile = function(coord, zoom, ownerDocument)
+        {
+            var normalizedCoord = getNormalizedCoord(coord, zoom);
+            if (!normalizedCoord)
+            {
+                return null;
+            }
+            var bound = Math.pow(2, zoom);
+            var img = ownerDocument.createElement('img');
+            img.style.width = this.tileSize.width + 'px';
+            img.style.height = this.tileSize.height + 'px';
+            img.style.opacity = 0.25;
+            img.src = 'bordertiles' +
+                '/' + zoom + '/' + normalizedCoord.x + '/' +
+                (normalizedCoord.y) + '.png';
+            return img;
+        };
+
+        function showBorderLayer()
+        {
+            window.map.overlayMapTypes.insertAt(
+                0, new BorderMapType(new google.maps.Size(window.tile_width,
+                    window.tile_height))
+            );
+            for (k in layers)
+            {
+                layers[k] += 1;
+            }
+            layers.Borders = 0;
+        }
+
+        function hideBorderLayer()
+        {
+            window.map.overlayMapTypes.removeAt(layers.Borders);
+            kl = layers.Borders;
+            delete layers.Borders;
+            for (k in layers)
+            {
+                if (layers[k] > kl)
+                {
+                    layers[k] -= 1;
+                }
+            }
+        }
+
+        function RoadsAndCitiesMapType(tileSize)
+        {
+            this.tileSize = tileSize;
+        }
+
+        RoadsAndCitiesMapType.prototype.getTile = function(coord, zoom,
+            ownerDocument)
+        {
+            var normalizedCoord = getNormalizedCoord(coord, zoom);
+            if (!normalizedCoord)
+            {
+                return null;
+            }
+            var bound = Math.pow(2, zoom);
+            var img = ownerDocument.createElement('img');
+            img.style.width = this.tileSize.width + 'px';
+            img.style.height = this.tileSize.height + 'px';
+            img.src =
+                'roadsandcitiestiles' +
+                '/' + zoom + '/' + normalizedCoord.x + '/' +
+                (normalizedCoord.y) + '.png';
+            return img;
+        };
+
+        function showRoadsAndCitiesLayer()
+        {
+            window.map.overlayMapTypes.insertAt(
+                0, new RoadsAndCitiesMapType(new google.maps.Size(window.tile_width,
+                    window.tile_height))
+            );
+            for (k in layers)
+            {
+                layers[k] += 1;
+            }
+            layers.RoadsAndCities = 0;
+        }
+
+        function hideRoadsAndCitiesLayer()
+        {
+            window.map.overlayMapTypes.removeAt(layers.RoadsAndCities);
+            kl = layers.RoadsAndCities;
+            delete layers.RoadsAndCities;
+            for (k in layers)
+            {
+                if (layers[k] > kl)
+                {
+                    layers[k] -= 1;
+                }
+            }
+        }
+
+        function GridMapType(tileSize)
+        {
+            this.tileSize = tileSize;
+        }
+
+        GridMapType.prototype.getTile = function(coord, zoom, ownerDocument)
+        {
+            var normalizedCoord = getNormalizedCoord(coord, zoom);
+            if (!normalizedCoord)
+            {
+                return null;
+            }
+            var bound = Math.pow(2, zoom);
+            var img = ownerDocument.createElement('img');
+            img.style.width = this.tileSize.width + 'px';
+            img.style.height = this.tileSize.height + 'px';
+            img.src = 'gridtiles' +
+                '/' + zoom + '/' + normalizedCoord.x + '/' +
+                (normalizedCoord.y) + '.png';
+            return img;
+        };
+
+        function showGridLayer()
+        {
+            window.map.overlayMapTypes.insertAt(
+                0, new GridMapType(new google.maps.Size(window.tile_width,
+                    window.tile_height))
+            );
+            for (k in layers)
+            {
+                layers[k] += 1;
+            }
+            document.getElementById("ScaleDiv").style.visibility = "visible";
+            layers.Grid = 0;
+        }
+
+        function hideGridLayer()
+        {
+            window.map.overlayMapTypes.removeAt(layers.Grid);
+            kl = layers.Grid;
+            delete layers.Grid;
+            document.getElementById("ScaleDiv").style.visibility = "hidden";
+            for (k in layers)
+            {
+                if (layers[k] > kl)
+                {
+                    layers[k] -= 1;
+                }
+            }
+        }
+
+        // Normalizes the coords that tiles repeat across the x axis (horizontally)
+        // like the standard Google map tiles.
+        function getNormalizedCoord(coord, zoom)
+        {
+            var y = coord.y;
+            var x = coord.x;
+
+            // tile range in one direction range is dependent on zoom level
+            // 0 = 1 tile, 1 = 2 tiles, 2 = 4 tiles, 3 = 8 tiles, etc
+            var tileRange = 1 << zoom;
+
+            // don't repeat across y-axis (vertically)
+            if (y < 0 || y >= tileRange)
+            {
+                return null;
+            }
+
+            // repeat across x-axis
+            if (x < 0 || x >= tileRange)
+            {
+                return null;
+            }
+
+            return {
+                x: x,
+                y: y
+            };
+        }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA8cTVlfWFGeqGBsQLCdjcqMtSJGu4tLa0&callback=initMap">
+    </script>
+</body>
+
+</html>
